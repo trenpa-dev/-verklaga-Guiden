@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semesterplanering 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const WEEKS = [
+      { week: 25, half1: { dates: '15–17 jun', days: 3 }, half2: { dates: '18–21 jun', days: 4 } },
+      { week: 26, half1: { dates: '22–24 jun', days: 3 }, half2: { dates: '25–28 jun', days: 4 } },
+      { week: 27, half1: { dates: '29 jun–1 jul', days: 3 }, half2: { dates: '2–5 jul', days: 4 } },
+      { week: 28, half1: { dates: '6–8 jul', days: 3 }, half2: { dates: '9–12 jul', days: 4 } },
+      { week: 29, half1: { dates: '13–15 jul', days: 3 }, half2: { dates: '16–19 jul', days: 4 } },
+      { week: 30, half1: { dates: '20–22 jul', days: 3 }, half2: { dates: '23–26 jul', days: 4 } },
+      { week: 31, half1: { dates: '27–29 jul', days: 3 }, half2: { dates: '30 jul–2 aug', days: 4 } },
+      { week: 32, half1: { dates: '3–5 aug', days: 3 }, half2: { dates: '6–9 aug', days: 4 } },
+      { week: 33, half1: { dates: '10–12 aug', days: 3 }, half2: { dates: '13–16 aug', days: 4 } },
+      { week: 34, half1: { dates: '17–19 aug', days: 3 }, half2: { dates: '20–23 aug', days: 4 } },
+    ]
+
+    const COLORS = [
+      { sel: 'bg-blue-500 text-white border-blue-500', unsel: 'bg-white text-blue-600 border-blue-200', summary: 'bg-blue-50 border-blue-300 text-blue-700', dot: 'bg-blue-500' },
+      { sel: 'bg-emerald-500 text-white border-emerald-500', unsel: 'bg-white text-emerald-600 border-emerald-200', summary: 'bg-emerald-50 border-emerald-300 text-emerald-700', dot: 'bg-emerald-500' },
+      { sel: 'bg-violet-500 text-white border-violet-500', unsel: 'bg-white text-violet-600 border-violet-200', summary: 'bg-violet-50 border-violet-300 text-violet-700', dot: 'bg-violet-500' },
+      { sel: 'bg-amber-500 text-white border-amber-500', unsel: 'bg-white text-amber-600 border-amber-200', summary: 'bg-amber-50 border-amber-300 text-amber-700', dot: 'bg-amber-500' },
+      { sel: 'bg-rose-500 text-white border-rose-500', unsel: 'bg-white text-rose-600 border-rose-200', summary: 'bg-rose-50 border-rose-300 text-rose-700', dot: 'bg-rose-500' },
+    ]
+
+    function App() {
+      const [people, setPeople] = React.useState([{ id: 1, name: 'Person 1' }, { id: 2, name: 'Person 2' }])
+      const [editingId, setEditingId] = React.useState(null)
+      const [newName, setNewName] = React.useState('')
+      const [selections, setSelections] = React.useState({})
+      const [nextId, setNextId] = React.useState(3)
+
+      function toggle(personId, weekNum, half) {
+        const key = `${weekNum}-${half}`
+        setSelections(prev => {
+          const cur = new Set(prev[personId] || [])
+          cur.has(key) ? cur.delete(key) : cur.add(key)
+          return { ...prev, [personId]: new Set(cur) }
+        })
+      }
+
+      function isSel(personId, weekNum, half) {
+        return (selections[personId] || new Set()).has(`${weekNum}-${half}`)
+      }
+
+      function addPerson() {
+        const id = nextId
+        setPeople(p => [...p, { id, name: `Person ${id}` }])
+        setNextId(id + 1)
+      }
+
+      function removePerson(id) {
+        setPeople(p => p.filter(x => x.id !== id))
+        setSelections(p => { const n = {...p}; delete n[id]; return n })
+      }
+
+      function commitEdit(id) {
+        setPeople(p => p.map(x => x.id === id ? { ...x, name: newName || x.name } : x))
+        setEditingId(null)
+      }
+
+      function totalDays(personId) {
+        let t = 0
+        for (const key of (selections[personId] || new Set())) {
+          const [ws, half] = key.split('-')
+          const w = WEEKS.find(x => x.week === parseInt(ws))
+          if (w) t += w[half].days
+        }
+        return t
+      }
+
+      function getCommon() {
+        if (people.length < 2) return new Set()
+        const sets = people.map(p => selections[p.id] || new Set())
+        const common = new Set()
+        for (const key of sets[0]) {
+          if (sets.every(s => s.has(key))) common.add(key)
+        }
+        return common
+      }
+
+      function commonDays(c) {
+        let t = 0
+        for (const key of c) {
+          const [ws, half] = key.split('-')
+          const w = WEEKS.find(x => x.week === parseInt(ws))
+          if (w) t += w[half].days
+        }
+        return t
+      }
+
+      const common = getCommon()
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-amber-50">
+          {/* Header */}
+          <header className="bg-white border-b border-slate-200 px-4 py-3 shadow-sm sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-amber-400 rounded-xl flex items-center justify-center text-white text-lg">☀️</div>
+              <div>
+                <div className="font-bold text-slate-800">Semesterplanering 2026</div>
+                <div className="text-xs text-slate-500">Vecka 25–34</div>
+              </div>
+            </div>
+          </header>
+
+          <div className="p-4 space-y-4 max-w-2xl mx-auto">
+
+            {/* People */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-semibold text-slate-700 text-sm">👥 Personer</span>
+                {people.length < 5 &&
+                  <button onClick={addPerson} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg">
+                    + Lägg till
+                  </button>
+                }
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {people.map((p, i) => {
+                  const c = COLORS[i % COLORS.length]
+                  return (
+                    <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${c.summary}`}>
+                      <div className={`w-2 h-2 rounded-full ${c.dot}`} />
+                      {editingId === p.id ? (
+                        <input autoFocus value={newName}
+                          onChange={e => setNewName(e.target.value)}
+                          onBlur={() => commitEdit(p.id)}
+                          onKeyDown={e => e.key === 'Enter' && commitEdit(p.id)}
+                          className="text-sm font-medium bg-transparent outline-none w-20 border-b border-current"
+                        />
+                      ) : (
+                        <span className="text-sm font-medium cursor-pointer" onClick={() => { setEditingId(p.id); setNewName(p.name) }}>{p.name}</span>
+                      )}
+                      <span className="text-xs opacity-60">{totalDays(p.id)}d</span>
+                      {people.length > 1 &&
+                        <button onClick={() => removePerson(p.id)} className="opacity-30 hover:opacity-60 text-xs ml-1">✕</button>
+                      }
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <span className="font-semibold text-slate-700 text-sm">📅 Välj semesterperioder</span>
+              </div>
+              {/* Column headers */}
+              <div className="grid grid-cols-3 text-xs text-slate-400 font-semibold px-3 py-2 bg-slate-50 border-b border-slate-100 uppercase tracking-wide">
+                <div>Vecka</div>
+                <div className="text-center">Mån–Ons</div>
+                <div className="text-center">Tor–Sön</div>
+              </div>
+
+              {WEEKS.map((w, wi) => (
+                <div key={w.week} className={`grid grid-cols-3 border-b border-slate-100 last:border-0 ${wi % 2 ? 'bg-slate-50/40' : ''}`}>
+                  <div className="flex items-center px-3 py-2">
+                    <span className="font-bold text-slate-600 text-sm">v.{w.week}</span>
+                  </div>
+                  {['half1','half2'].map(half => (
+                    <div key={half} className="border-l border-slate-100 p-2">
+                      <div className="text-center text-[10px] text-slate-400 mb-1">{w[half].dates} · {w[half].days}d</div>
+                      <div className="flex flex-col gap-1">
+                        {people.map((p, i) => {
+                          const c = COLORS[i % COLORS.length]
+                          const sel = isSel(p.id, w.week, half)
+                          return (
+                            <button key={p.id}
+                              onClick={() => toggle(p.id, w.week, half)}
+                              className={`w-full py-1.5 px-1 rounded-lg text-xs font-medium border transition-all ${sel ? c.sel : c.unsel}`}>
+                              {p.name}
+                            </button>
+                          )
+                        })}
+                        {common.has(`${w.week}-${half}`) &&
+                          <div className="text-center text-[10px] text-amber-500 font-bold">★ Gemen.</div>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+              <div className="font-semibold text-slate-700 text-sm mb-3">Sammanfattning</div>
+              <div className="grid grid-cols-2 gap-2">
+                {people.map((p, i) => {
+                  const c = COLORS[i % COLORS.length]
+                  const days = totalDays(p.id)
+                  const slots = (selections[p.id] || new Set()).size
+                  return (
+                    <div key={p.id} className={`rounded-xl p-3 border ${c.summary}`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className={`w-2 h-2 rounded-full ${c.dot}`} />
+                        <span className="font-semibold text-sm">{p.name}</span>
+                      </div>
+                      <div className="text-2xl font-bold">{days}</div>
+                      <div className="text-xs opacity-60">{slots} halvveckor</div>
+                    </div>
+                  )
+                })}
+                {people.length >= 2 && (
+                  <div className="rounded-xl p-3 border bg-amber-50 border-amber-200 text-amber-700">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-amber-400">★</span>
+                      <span className="font-semibold text-sm">Gemensamt</span>
+                    </div>
+                    <div className="text-2xl font-bold">{commonDays(common)}</div>
+                    <div className="text-xs opacity-60">{common.size} halvveckor</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+  </script>
+</body>
+</html>
