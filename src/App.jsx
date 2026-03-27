@@ -1,238 +1,272 @@
-import { useState, useRef } from 'react'
-import { Scale, Lock, FileText, CheckCheck, Download } from 'lucide-react'
+import { useState } from 'react'
+import { Sun, Plus, Trash2, Users, Calendar } from 'lucide-react'
 
-const STEPS = [
-  { p: 20, t: 'OCR: Läser in dokumenttext...' },
-  { p: 45, t: 'Identifierar tillämpliga lagrum...' },
-  { p: 75, t: 'Letar efter motstridiga uppgifter...' },
-  { p: 95, t: 'Formulerar juridiskt yttrande...' },
-  { p: 100, t: 'Klart!' },
+const WEEKS = [
+  { week: 25, half1: { label: 'mån–ons', dates: '15–17 jun', days: 3 }, half2: { label: 'tor–sön', dates: '18–21 jun', days: 4 } },
+  { week: 26, half1: { label: 'mån–ons', dates: '22–24 jun', days: 3 }, half2: { label: 'tor–sön', dates: '25–28 jun', days: 4 } },
+  { week: 27, half1: { label: 'mån–ons', dates: '29 jun–1 jul', days: 3 }, half2: { label: 'tor–sön', dates: '2–5 jul', days: 4 } },
+  { week: 28, half1: { label: 'mån–ons', dates: '6–8 jul', days: 3 }, half2: { label: 'tor–sön', dates: '9–12 jul', days: 4 } },
+  { week: 29, half1: { label: 'mån–ons', dates: '13–15 jul', days: 3 }, half2: { label: 'tor–sön', dates: '16–19 jul', days: 4 } },
+  { week: 30, half1: { label: 'mån–ons', dates: '20–22 jul', days: 3 }, half2: { label: 'tor–sön', dates: '23–26 jul', days: 4 } },
+  { week: 31, half1: { label: 'mån–ons', dates: '27–29 jul', days: 3 }, half2: { label: 'tor–sön', dates: '30 jul–2 aug', days: 4 } },
+  { week: 32, half1: { label: 'mån–ons', dates: '3–5 aug', days: 3 }, half2: { label: 'tor–sön', dates: '6–9 aug', days: 4 } },
+  { week: 33, half1: { label: 'mån–ons', dates: '10–12 aug', days: 3 }, half2: { label: 'tor–sön', dates: '13–16 aug', days: 4 } },
+  { week: 34, half1: { label: 'mån–ons', dates: '17–19 aug', days: 3 }, half2: { label: 'tor–sön', dates: '20–23 aug', days: 4 } },
+]
+
+const COLORS = [
+  { bg: 'bg-blue-500', light: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-700', dot: 'bg-blue-500' },
+  { bg: 'bg-emerald-500', light: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  { bg: 'bg-violet-500', light: 'bg-violet-100', border: 'border-violet-400', text: 'text-violet-700', dot: 'bg-violet-500' },
+  { bg: 'bg-amber-500', light: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-700', dot: 'bg-amber-500' },
+  { bg: 'bg-rose-500', light: 'bg-rose-100', border: 'border-rose-400', text: 'text-rose-700', dot: 'bg-rose-500' },
 ]
 
 export default function App() {
-  const [view, setView] = useState('upload')
-  const [step, setStep] = useState(1)
-  const [progress, setProgress] = useState(0)
-  const [statusMsg, setStatusMsg] = useState('Läser paragrafer...')
-  const fileInputRef = useRef(null)
+  const [people, setPeople] = useState([
+    { id: 1, name: 'Person 1' },
+    { id: 2, name: 'Person 2' },
+  ])
+  const [editingId, setEditingId] = useState(null)
+  const [newName, setNewName] = useState('')
+  const [selections, setSelections] = useState({})
+  const [nextId, setNextId] = useState(3)
 
-  function simulateProcessing() {
-    setView('analyzing')
-    setStep(2)
-    STEPS.forEach((s, i) => {
-      setTimeout(() => {
-        setProgress(s.p)
-        setStatusMsg(s.t)
-        if (s.p === 100) {
-          setTimeout(() => {
-            setView('result')
-            setStep(3)
-          }, 600)
-        }
-      }, (i + 1) * 1200)
+  function toggleSlot(personId, weekNum, half) {
+    const key = `${weekNum}-${half}`
+    setSelections(prev => {
+      const current = new Set(prev[personId] || [])
+      if (current.has(key)) current.delete(key)
+      else current.add(key)
+      return { ...prev, [personId]: new Set(current) }
     })
   }
 
-  function reset() {
-    setView('upload')
-    setStep(1)
-    setProgress(0)
-    setStatusMsg('Läser paragrafer...')
+  function isSelected(personId, weekNum, half) {
+    return (selections[personId] || new Set()).has(`${weekNum}-${half}`)
   }
 
+  function addPerson() {
+    const id = nextId
+    setPeople(prev => [...prev, { id, name: `Person ${id}` }])
+    setNextId(id + 1)
+  }
+
+  function removePerson(id) {
+    setPeople(prev => prev.filter(p => p.id !== id))
+    setSelections(prev => { const n = { ...prev }; delete n[id]; return n })
+  }
+
+  function startEdit(person) {
+    setEditingId(person.id)
+    setNewName(person.name)
+  }
+
+  function commitEdit(id) {
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, name: newName || p.name } : p))
+    setEditingId(null)
+  }
+
+  function totalDays(personId) {
+    const sel = selections[personId] || new Set()
+    let total = 0
+    for (const key of sel) {
+      const [weekStr, half] = key.split('-')
+      const week = WEEKS.find(w => w.week === parseInt(weekStr))
+      if (week) total += week[half].days
+    }
+    return total
+  }
+
+  function commonSlots() {
+    if (people.length < 2) return new Set()
+    const allSets = people.map(p => selections[p.id] || new Set())
+    const first = allSets[0]
+    const common = new Set()
+    for (const key of first) {
+      if (allSets.every(s => s.has(key))) common.add(key)
+    }
+    return common
+  }
+
+  function commonDays(common) {
+    let total = 0
+    for (const key of common) {
+      const [weekStr, half] = key.split('-')
+      const week = WEEKS.find(w => w.week === parseInt(weekStr))
+      if (week) total += week[half].days
+    }
+    return total
+  }
+
+  const common = commonSlots()
+
   return (
-    <div className="bg-[#f8fafc] text-slate-900 min-h-screen">
-      {/* Header */}
-      <nav className="bg-white/80 sticky top-0 z-50 backdrop-blur-md border-b border-slate-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 font-bold text-2xl text-blue-800 tracking-tight">
-            <Scale className="w-8 h-8" />
-            <span>
-              Rättshjälp
-              <span className="text-blue-500 underline decoration-2 underline-offset-4">AI</span>
-            </span>
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-amber-50">
+      <header className="bg-white border-b border-slate-200 px-6 py-4 shadow-sm">
+        <div className="max-w-5xl mx-auto flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber-400 rounded-2xl flex items-center justify-center shadow-md">
+            <Sun className="w-6 h-6 text-white" />
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#" className="hover:text-blue-600 transition">Hur det fungerar</a>
-            <a href="#" className="hover:text-blue-600 transition">Priser</a>
-            <a href="#" className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full flex items-center gap-2">
-              <Lock className="w-4 h-4" /> Logga in med BankID
-            </a>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Semesterplanering 2026</h1>
+            <p className="text-xs text-slate-500">Vecka 25–34 · Markera era semesterveckor</p>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-16">
-        {/* Stepper */}
-        <div className="flex justify-between mb-16 relative max-w-2xl mx-auto">
-          {[
-            { num: 1, label: 'Ladda upp' },
-            { num: 2, label: 'Analys' },
-            { num: 3, label: 'Färdigt' },
-          ].map(({ num, label }) => (
-            <div key={num} className="flex flex-col items-center z-10">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold mb-3 transition-all ${
-                step >= num
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-                  : 'bg-white border-2 border-slate-200 text-slate-400'
-              }`}>
-                {num}
-              </div>
-              <span className={`text-xs font-bold uppercase tracking-widest ${
-                step >= num ? 'text-blue-600' : 'text-slate-400'
-              }`}>
-                {label}
-              </span>
+      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+        {/* People manager */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-slate-700 font-semibold">
+              <Users className="w-4 h-4" />
+              <span>Personer</span>
             </div>
-          ))}
-          <div className="absolute top-6 left-0 w-full h-[2px] bg-slate-200 -z-0" />
-        </div>
-
-        {/* View: Upload */}
-        {view === 'upload' && (
-          <section>
-            <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
-                Fått ett avslag? <br />
-                <span className="text-blue-600">Vi hjälper dig att vinna.</span>
-              </h1>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                Vår AI analyserar ditt beslut mot gällande lagstiftning och skriver ett professionellt
-                överklagande på under 60 sekunder.
-              </p>
-            </div>
-
-            <div className="glass-card rounded-[2rem] p-4 shadow-2xl shadow-blue-100">
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-blue-200 rounded-[1.5rem] p-16 text-center hover:bg-blue-50/50 hover:border-blue-400 transition-all cursor-pointer group"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,image/*"
-                  onChange={simulateProcessing}
-                />
-                <div className="w-24 h-24 bg-blue-100 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-inner">
-                  <FileText className="text-blue-600 w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Ladda upp ditt beslut</h3>
-                <p className="text-slate-500">Dra och släpp din PDF eller ta ett foto</p>
-                <p className="text-[10px] text-slate-400 mt-4 uppercase tracking-[0.2em]">
-                  Säker hantering via SSL & GDPR
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 opacity-40 grayscale contrast-125">
-              <div className="flex justify-center">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/e/e9/F%C3%B6rs%C3%A4kringskassan_logo.svg"
-                  className="h-6"
-                  alt="Försäkringskassan"
-                />
-              </div>
-              <div className="flex justify-center">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/2/2b/Arbetsf%C3%B6rmedlingen_logo.svg"
-                  className="h-6"
-                  alt="Arbetsförmedlingen"
-                />
-              </div>
-              <div className="flex justify-center items-center text-sm font-bold">MIGRATIONSVERKET</div>
-              <div className="flex justify-center items-center text-sm font-bold">KOMMUNEN</div>
-            </div>
-          </section>
-        )}
-
-        {/* View: Analyzing */}
-        {view === 'analyzing' && (
-          <section className="text-center py-12">
-            <div className="spinner mx-auto mb-8" />
-            <h2 className="text-3xl font-bold mb-4">Analyserar juridiska grunder...</h2>
-            <p className="text-slate-500 text-lg mb-10 italic">{statusMsg}</p>
-            <div className="max-w-md mx-auto bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-blue-600 h-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </section>
-        )}
-
-        {/* View: Result */}
-        {view === 'result' && (
-          <section className="space-y-8">
-            <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex gap-4 items-center shadow-sm">
-              <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0">
-                <CheckCheck />
-              </div>
-              <div>
-                <h3 className="font-bold text-emerald-900">Analys genomförd</h3>
-                <p className="text-emerald-700 text-sm">
-                  Vi har identifierat två lagrum där beslutet strider mot förvaltningslagen.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden">
-              <div className="bg-slate-900 p-4 flex justify-between items-center text-white px-8">
-                <span className="text-xs font-mono opacity-70">DRAFT_APPEAL_v1.0.pdf</span>
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                </div>
-              </div>
-              <div className="p-12 legal-font text-slate-800 leading-[1.8]">
-                <div className="text-right mb-12 italic text-slate-500">Bilaga 1: Överklagande</div>
-                <p className="mb-8 font-bold text-lg underline">TILL FÖRVALTNINGSRÄTTEN</p>
-                <p className="mb-6">
-                  <strong>Klagande:</strong> [Användarens Namn]<br />
-                  <strong>Motpart:</strong> Försäkringskassan
-                </p>
-                <p className="mb-8 font-bold uppercase tracking-tight">
-                  Överklagande av beslut daterat 2023-11-01
-                </p>
-                <p className="mb-6">
-                  Härmed överklagas rubricerat beslut. Jag yrkar att Förvaltningsrätten upphäver
-                  myndighetens beslut och återförvisar ärendet för ny handläggning.
-                </p>
-                <h4 className="font-bold mb-4 border-b border-slate-300 pb-2">
-                  GRUNDER FÖR ÖVERKLAGANDET
-                </h4>
-                <p className="mb-6">
-                  Myndigheten har brustit i sin utredningsskyldighet enligt 23 § förvaltningslagen.
-                  Genom att bortse från det medicinska underlaget i aktbilaga 14 har en felaktig
-                  bedömning gjorts av arbetsförmågan...
-                </p>
-                <div className="h-40 bg-gradient-to-t from-white to-transparent" />
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4">
-              <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-6 rounded-2xl font-bold text-xl shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-3">
-                <Download /> Ladda ner (.PDF)
-              </button>
+            {people.length < 5 && (
               <button
-                onClick={reset}
-                className="px-10 py-6 bg-white border border-slate-200 text-slate-500 rounded-2xl font-bold hover:bg-slate-50 transition-all"
+                onClick={addPerson}
+                className="flex items-center gap-1 text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg transition"
               >
-                Börja om
+                <Plus className="w-4 h-4" /> Lägg till person
               </button>
-            </div>
-          </section>
-        )}
-      </main>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {people.map((p, i) => {
+              const color = COLORS[i % COLORS.length]
+              return (
+                <div key={p.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${color.border} ${color.light}`}>
+                  <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                  {editingId === p.id ? (
+                    <input
+                      autoFocus
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      onBlur={() => commitEdit(p.id)}
+                      onKeyDown={e => e.key === 'Enter' && commitEdit(p.id)}
+                      className="text-sm font-medium bg-transparent outline-none w-24 border-b border-slate-400"
+                    />
+                  ) : (
+                    <span
+                      className={`text-sm font-medium ${color.text} cursor-pointer hover:underline`}
+                      onClick={() => startEdit(p)}
+                      title="Klicka för att byta namn"
+                    >
+                      {p.name}
+                    </span>
+                  )}
+                  <span className={`text-xs ${color.text} opacity-60`}>{totalDays(p.id)} dagar</span>
+                  {people.length > 1 && (
+                    <button onClick={() => removePerson(p.id)} className="ml-1 opacity-30 hover:opacity-60 transition">
+                      <Trash2 className="w-3.5 h-3.5 text-slate-500" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
 
-      <footer className="max-w-4xl mx-auto px-6 py-12 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-400 text-xs">
-        <p>© 2024 Rättshjälp AI (Beta). Ej en advokatbyrå.</p>
-        <div className="flex gap-6 italic">
-          <a href="#">Användarvillkor</a>
-          <a href="#">Integritetspolicy</a>
-        </div>
-      </footer>
+        {/* Calendar grid */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex items-center gap-2 text-slate-700 font-semibold">
+            <Calendar className="w-4 h-4" />
+            <span>Välj semesterperioder</span>
+            <span className="text-xs text-slate-400 font-normal ml-1">— klicka för att markera/avmarkera</span>
+          </div>
+
+          <div className="grid grid-cols-[72px_1fr_1fr] text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-2 bg-slate-50 border-b border-slate-100">
+            <div>Vecka</div>
+            <div className="text-center pl-2">Första halvan (mån–ons)</div>
+            <div className="text-center pl-2">Andra halvan (tor–sön)</div>
+          </div>
+
+          {WEEKS.map((w, wi) => {
+            const isCommonH1 = common.has(`${w.week}-half1`)
+            const isCommonH2 = common.has(`${w.week}-half2`)
+            return (
+              <div
+                key={w.week}
+                className={`grid grid-cols-[72px_1fr_1fr] items-stretch border-b border-slate-100 last:border-0 ${wi % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}
+              >
+                <div className="flex flex-col justify-center px-4 py-3">
+                  <span className="font-bold text-slate-700 text-sm">v.{w.week}</span>
+                </div>
+
+                {['half1', 'half2'].map(half => {
+                  const isCommon = half === 'half1' ? isCommonH1 : isCommonH2
+                  const halfData = w[half]
+                  return (
+                    <div key={half} className="border-l border-slate-100 p-2">
+                      <div className="text-[10px] text-slate-400 mb-1.5 text-center font-medium">
+                        {halfData.dates}
+                        <span className="ml-1 text-slate-300">·</span>
+                        <span className="ml-1">{halfData.days} dagar</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {people.map((p, i) => {
+                          const color = COLORS[i % COLORS.length]
+                          const sel = isSelected(p.id, w.week, half)
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => toggleSlot(p.id, w.week, half)}
+                              className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all border ${
+                                sel
+                                  ? `${color.bg} text-white border-transparent shadow-sm scale-[1.01]`
+                                  : `bg-white ${color.text} border-slate-200 hover:border-current`
+                              }`}
+                            >
+                              {p.name}
+                            </button>
+                          )
+                        })}
+                        {isCommon && (
+                          <div className="text-center text-[10px] text-amber-500 font-bold mt-0.5">★ Gemensamt</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </section>
+
+        {/* Summary */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <h2 className="font-semibold text-slate-700 mb-4">Sammanfattning</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {people.map((p, i) => {
+              const color = COLORS[i % COLORS.length]
+              const days = totalDays(p.id)
+              const slots = (selections[p.id] || new Set()).size
+              return (
+                <div key={p.id} className={`rounded-xl p-4 ${color.light} border ${color.border}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                    <span className={`font-semibold text-sm ${color.text}`}>{p.name}</span>
+                  </div>
+                  <div className={`text-3xl font-bold ${color.text}`}>{days}</div>
+                  <div className={`text-xs mt-0.5 ${color.text} opacity-70`}>{slots} halvveckor · {days} dagar</div>
+                </div>
+              )
+            })}
+            {people.length >= 2 && (
+              <div className="rounded-xl p-4 bg-amber-50 border border-amber-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-amber-400 font-bold">★</span>
+                  <span className="font-semibold text-sm text-amber-700">Gemensamt</span>
+                </div>
+                <div className="text-3xl font-bold text-amber-600">{commonDays(common)}</div>
+                <div className="text-xs mt-0.5 text-amber-600 opacity-70">{common.size} halvveckor · {commonDays(common)} dagar</div>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
     </div>
   )
 }
